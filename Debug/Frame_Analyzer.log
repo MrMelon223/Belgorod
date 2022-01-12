@@ -1,0 +1,3 @@
+﻿  analyze.cpp
+F:\Visual Studio Projects\Frame_Analyzer\analyze.cpp(23,26): error C2660: 'pixel_count': function does not take 3 arguments
+F:\Visual Studio Projects\Frame_Analyzer\analyze.h(20,6): message : see declaration of 'pixel_count'
