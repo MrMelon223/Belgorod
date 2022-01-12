@@ -24,6 +24,12 @@ typedef struct uuid{
 	}
 };
 
+typedef struct pixel {
+	uchar r, g, b;
+	int size_x, size_y;
+	int x, y;
+};
+
 /*typedef struct node{
 	int x, y, z;
 	uchar r, g, b;
@@ -112,10 +118,10 @@ void init() {
 	long count = 0;
 	while (!end) {
 		cap >> frame;
-		vector<vector<bool>> MAP; MAP.resize(frame.rows);
+		/*vector<vector<bool>> MAP; MAP.resize(frame.rows);
 		for (int y = 0; y < frame.rows; y++) {
 			MAP[y].resize(frame.cols);
-		}
+		}*/
 		int x = 0, y = 0;
 		if (frame.empty()) {
 			end = true;
@@ -125,7 +131,7 @@ void init() {
 		imshow("Video Input", frame);
 		waitKey(1);
 		pixel_count(frame, y, x);
-		cout << setw(15) << "Frame " << count << ": " << setw(15) << x << "," << y << endl;
+		cout << setw(15) << "Frame " << count << ": " << setw(15) << x << "," << y << setw(15) << (float)x / frame.cols * 100 << "% X-Axis, " << setw(8) << (float)y / frame.rows * 100 << "% Y-Axis" << endl;
 		csv << x << "," << y << "\n";
 		count++;
 	}
@@ -165,12 +171,11 @@ void init() {
 	}
 	return map;
 }
-
-vector<vector<node>> break_down(vector<vector<bool>> in) {
-	vector<vector<node>> ret(in.size());
+vector<vector<pixel>> break_down(Mat in) {
+	vector<vector<pixel>> ret;
 	for (int y = 0; y < in.size(); y++) {
 		for (int x = 0; x < in[y].size(); x++) {
-			if (in[y][abs(x - 1)] && in[y][x]) {
+			if () {
 				node n;
 				n.x = x;
 				n.y = y;
@@ -238,7 +243,21 @@ bool same_color(Vec3f a, Vec3f b, float percent) {
 
 bool interpolated(Vec3f a, Vec3f b, Vec3f c, float percent) {
 	bool ret = false;
-	if (b[0] / 2 <= ((c[0] - a[0]) / 2) + (((c[0] - a[0]) / 2) * percent) && b[0] >= ((c[0] - a[0]) / 2) - (((c[0] - a[0])) / 2 * percent)) {
+	__m128 a_m128 = _mm_set_ps((a[2] + ((c[2] - a[2])/ 2) - (a[2] * percent)), (a[1] + ((c[1] - a[2]) / 2) - (a[1] * percent)), (a[0] + ((c[0] - a[0]) / 2) - (a[0] * percent)), 1.0);
+	__m128 b_m128 = _mm_set_ps(b[2], b[1], b[0], 1.0);
+	__m128 c_m128 = _mm_set_ps((c[2]/2)+(c[2] * percent), (c[1] / 2) + (c[1] * percent), (c[0] / 2) + (c[0] * percent), 1.0);
+	__m128 cmplt_b_c = _mm_cmplt_ps(b_m128, c_m128);		volatile bool* res_cmplt_b_c = (volatile bool*)&cmplt_b_c;
+	__m128 cmpgt_a_b = _mm_cmpgt_ps(b_m128, a_m128);		volatile bool* res_cmpgt_a_b = (volatile bool*)&cmpgt_a_b;
+	for (int i = 0; i < 3; i++) {
+		if (res_cmplt_b_c[i] == 1 && res_cmpgt_a_b[i] == 1) {
+			
+		}
+		else {
+			return false;
+		}
+	}
+	return true;
+	/*if (b[0] / 2 <= ((c[0] - a[0]) / 2) + (((c[0] - a[0]) / 2) * percent) && b[0] >= ((c[0] - a[0]) / 2) - (((c[0] - a[0])) / 2 * percent)) {
 		ret = true;
 	}
 	else {
@@ -256,14 +275,14 @@ bool interpolated(Vec3f a, Vec3f b, Vec3f c, float percent) {
 	else {
 		return false;
 	}
-	return true;
+	return true;*/
 }
 
 void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 	in.convertTo(in, CV_32FC3);
 	int max_y = in.rows; int max_x = in.cols;
 		// calculate pixel size
-	srand(time(NULL));
+	//srand(time(NULL));
 	//int r = rand() % 16 + 1;
 	/*vector<vector<node>> ns = break_down(in);
 	x = ns.size();
@@ -271,11 +290,12 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 	int pix_size = 0;
 	int pix_size_p = 1024;
 	int pix_size_max = 0;
-	#pragma omp parallel
+	pixel current, prior;
+	#pragma omp parallel for
 	for (int xt = 0; xt < max_x; xt++) {
 		//srand(time(NULL));
 		//r = rand() % 16 + 1;
-		if (interpolated(in.at<Vec3f>((max_y/2), xt), in.at<Vec3f>((max_y/2), abs(xt+1)%max_x), in.at<Vec3f>((max_y/2), abs(xt+2)%max_x), 0.089) || (same_color(in.at<Vec3f>((max_y/2), xt),in.at<Vec3f>((max_y/2),abs(xt+1)%max_x), 0.0) && pix_size <= pix_size_max)) {
+		if (interpolated(in.at<Vec3f>((max_y/2), xt), in.at<Vec3f>((max_y/2), abs(xt+1)%max_x), in.at<Vec3f>((max_y/2), abs(xt+2)%max_x), 0.000000001) || (same_color(in.at<Vec3f>((max_y/2), xt),in.at<Vec3f>((max_y/2),abs(xt+1)%max_x), 0.0001) && pix_size <= pix_size_max)) {
 			pix_size++;
 		}
 		else {
@@ -283,6 +303,7 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 			if (pix_size > pix_size_max) {
 				pix_size_max = pix_size;
 			}
+
 			pix_size_p = pix_size;
 			pix_size = 0;
 			x++;
@@ -291,9 +312,9 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 	pix_size_max = 0;
 	pix_size = 0;
 	pix_size_p = 1024;
-	#pragma omp parallel
+	#pragma omp parallel for
 	for (int yt = 0; yt < max_y; yt++) {
-		if (interpolated(in.at<Vec3f>(yt, (max_x/2)), in.at<Vec3f>(abs(yt+1)%max_y, (max_x/2)), in.at<Vec3f>(abs(yt+2)%max_y, (max_x/2)), 0.089) || (same_color(in.at<Vec3f>(yt, (max_x / 2)), in.at<Vec3f>(abs(yt + 1) % max_y, (max_x / 2)), 0.0) && pix_size <= pix_size_max)) {
+		if (interpolated(in.at<Vec3f>(abs(yt-1), (max_x/2)), in.at<Vec3f>(yt, (max_x/2)), in.at<Vec3f>(abs(yt+1)%max_y, (max_x/2)), 0.000000001) || (same_color(in.at<Vec3f>(yt, (max_x / 2)), in.at<Vec3f>(abs(yt + 1) % max_y, (max_x / 2)), 0.0001) && pix_size <= pix_size_max)) {
 			pix_size++;
 		}
 		else {
