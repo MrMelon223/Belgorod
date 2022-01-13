@@ -218,7 +218,24 @@ node match(vector<node> in, node match) {
 	}
 }*/
 
-bool same_color(Vec3f a, Vec3f b, float percent) { 
+bool same_color(Vec3f a, Vec3f b, float percent) {
+	/*__m128 a_m128_high = _mm_set_ps((a[2] + (a[2] * percent)), (a[1] + (a[1] * percent)), (a[0] + (a[0] * percent)), 1.1);
+	//cout << setw(30) << "a_m128_high = { " << (a[2] + (a[2] * percent)) << " , " << (a[1] + (a[1] * percent)) << " , " << (a[0] + (a[0] * percent)) << " }\n\n";
+	__m128 a_m128_low = _mm_set_ps((a[2] - (a[2] * percent)), (a[1] - (a[1] * percent)), (a[0] - (a[0] * percent)), 0.9);
+	__m128 b_m128 = _mm_set_ps(b[2], b[1], b[0], 1.0);
+	__m128 cmplt_a_b = _mm_cmplt_ps(b_m128, a_m128_high);		volatile bool* res_cmplt_a_b = (volatile bool*)&cmplt_a_b;
+	__m128 cmpgt_a_b = _mm_cmpgt_ps(b_m128, a_m128_low);		volatile bool* res_cmpgt_a_b = (volatile bool*)&cmpgt_a_b;
+	#pragma omp parallel for
+	for (int i = 0; i < 3; i++) {
+		if (res_cmplt_a_b[i] == 1 && res_cmpgt_a_b[i] == 1) {
+			cout << setw(20) << "Same Color TRUE\n\n";
+		}
+		else {
+			return false;
+		}
+	}
+	cout << setw(20) << "Same Color TRUE\n\n";
+	return true;*/
 	bool ret = false;
 	if ((a[0] <= b[0] + (b[0] * percent) && b[0] <= a[0] + (a[0] * percent)) && (a[0] >= b[0] - (b[0] * percent) && b[0] >= a[0] - (a[0] * percent))) {
 		ret = true;
@@ -243,21 +260,23 @@ bool same_color(Vec3f a, Vec3f b, float percent) {
 
 bool interpolated(Vec3f a, Vec3f b, Vec3f c, float percent) {
 	bool ret = false;
-	__m128 a_m128 = _mm_set_ps((a[2] + ((c[2] - a[2])/ 2) - (a[2] * percent)), (a[1] + ((c[1] - a[2]) / 2) - (a[1] * percent)), (a[0] + ((c[0] - a[0]) / 2) - (a[0] * percent)), 1.0);
+	/*__m128 a_m128_low = _mm_set_ps((a[2] + ((c[2] - a[2]) / 2) - (a[2] * percent)), (a[1] + ((c[1] - a[1]) / 2) - (a[1] * percent)), (a[0] + ((c[0] - a[0]) / 2) - (a[0] * percent)), 1.0);
+	__m128 a_m128_high = _mm_set_ps((a[2] + ((c[2] - a[2]) / 2) + (a[2] * percent)), (a[1] + ((c[1] - a[1]) / 2) + (a[1] * percent)), (a[0] + ((c[0] - a[0]) / 2) + (a[0] * percent)), 1.0);
 	__m128 b_m128 = _mm_set_ps(b[2], b[1], b[0], 1.0);
-	__m128 c_m128 = _mm_set_ps((c[2]/2)+(c[2] * percent), (c[1] / 2) + (c[1] * percent), (c[0] / 2) + (c[0] * percent), 1.0);
-	__m128 cmplt_b_c = _mm_cmplt_ps(b_m128, c_m128);		volatile bool* res_cmplt_b_c = (volatile bool*)&cmplt_b_c;
-	__m128 cmpgt_a_b = _mm_cmpgt_ps(b_m128, a_m128);		volatile bool* res_cmpgt_a_b = (volatile bool*)&cmpgt_a_b;
+	__m128 c_m128 = _mm_set_ps((c[2]/2)+(c[2] * percent), (c[1] / 2) + (c[1] * percent), (c[0] / 2) + (c[0] * percent), 1.5);
+	__m128 cmplt_b_c = _mm_cmplt_ps(b_m128, c_m128);			volatile bool* res_cmplt_b_c = (volatile bool*)&cmplt_b_c;
+	__m128 cmpgt_a_b = _mm_cmpgt_ps(b_m128, a_m128_low);		volatile bool* res_cmpgt_a_b = (volatile bool*)&cmpgt_a_b;
+	#pragma omp parallel for
 	for (int i = 0; i < 3; i++) {
-		if (res_cmplt_b_c[i] == 1 && res_cmpgt_a_b[i] == 1) {
-			
+		if (res_cmplt_b_c[i] == 1 || res_cmpgt_a_b[i] == 1) {
 		}
 		else {
 			return false;
 		}
 	}
-	return true;
-	/*if (b[0] / 2 <= ((c[0] - a[0]) / 2) + (((c[0] - a[0]) / 2) * percent) && b[0] >= ((c[0] - a[0]) / 2) - (((c[0] - a[0])) / 2 * percent)) {
+	cout << setw(20) << "Interpolation TRUE\n\n";
+	return true;*/
+	if (b[0] / 2 <= ((c[0] - a[0]) / 2) + (((c[0] - a[0]) / 2) * percent) && b[0] >= ((c[0] - a[0]) / 2) - (((c[0] - a[0])) / 2 * percent)) {
 		ret = true;
 	}
 	else {
@@ -275,7 +294,7 @@ bool interpolated(Vec3f a, Vec3f b, Vec3f c, float percent) {
 	else {
 		return false;
 	}
-	return true;*/
+	return true;
 }
 
 void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
@@ -295,7 +314,7 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 	for (int xt = 0; xt < max_x; xt++) {
 		//srand(time(NULL));
 		//r = rand() % 16 + 1;
-		if (interpolated(in.at<Vec3f>((max_y/2), xt), in.at<Vec3f>((max_y/2), abs(xt+1)%max_x), in.at<Vec3f>((max_y/2), abs(xt+2)%max_x), 0.000000001) || (same_color(in.at<Vec3f>((max_y/2), xt),in.at<Vec3f>((max_y/2),abs(xt+1)%max_x), 0.0001) && pix_size <= pix_size_max)) {
+		if (interpolated(in.at<Vec3f>((max_y/2), abs(xt-1)), in.at<Vec3f>((max_y/2), xt), in.at<Vec3f>((max_y/2), abs(xt + 1) % max_x), 0.01) || (same_color(in.at<Vec3f>((max_y/2), xt),in.at<Vec3f>((max_y/2),abs(xt+1)%max_x), 0.001) && pix_size < pix_size_max)) {
 			pix_size++;
 		}
 		else {
@@ -303,18 +322,16 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 			if (pix_size > pix_size_max) {
 				pix_size_max = pix_size;
 			}
-
 			pix_size_p = pix_size;
 			pix_size = 0;
 			x++;
 		}
 	}
-	pix_size_max = 0;
 	pix_size = 0;
 	pix_size_p = 1024;
 	#pragma omp parallel for
 	for (int yt = 0; yt < max_y; yt++) {
-		if (interpolated(in.at<Vec3f>(abs(yt-1), (max_x/2)), in.at<Vec3f>(yt, (max_x/2)), in.at<Vec3f>(abs(yt+1)%max_y, (max_x/2)), 0.000000001) || (same_color(in.at<Vec3f>(yt, (max_x / 2)), in.at<Vec3f>(abs(yt + 1) % max_y, (max_x / 2)), 0.0001) && pix_size <= pix_size_max)) {
+		if (interpolated(in.at<Vec3f>(abs(yt-1), (max_x/2)), in.at<Vec3f>(yt, (max_x/2)), in.at<Vec3f>(abs(yt+1)%max_y, (max_x/2)), 0.01) || (same_color(in.at<Vec3f>(yt, (max_x / 2)), in.at<Vec3f>(abs(yt + 1) % max_y, (max_x / 2)), 0.001) && pix_size < pix_size_max)) {
 			pix_size++;
 		}
 		else {
