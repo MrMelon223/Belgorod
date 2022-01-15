@@ -95,10 +95,71 @@ Vec3f div(Vec3f a, Vec3f b) {
 	__m256 den = _mm256_set_ps(b[0], b[1], b[2], 1, 1, 1, 1, 1);
 	__m256 res = _mm256_div_ps(num, den);
 	volatile float* r = (volatile float*)&res;
-	Vec3f ret = (r[0], r[1], r[2]); 
+	Vec3f ret; ret[0] = r[0]; ret[1] = r[1]; ret[2] = r[2]; 
 	return ret;
 }*/
+bool equal(Vec3b a, Vec3b b) {
+		// SSE v2
+	__m128i a_v = _mm_set_epi8(a[0], a[1], a[2], 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+	__m128i b_v = _mm_set_epi8(a[0], a[1], a[2], 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2);
+	__m128i res = _mm_cmpeq_epi8(a_v, b_v);
+	volatile bool* r = (volatile bool*)&res;
+	for (int i = 0; i < 3; i++) {
+		if (r[i]) {
+		}
+		else {
+			return false;
+		}
+	}
+	return true;
+		// SCALAR
+	//cout << "Calling 'equal'\n\n";
+	/*for (int i = 0; i < 3; i++) {
+		if (a[i] == b[i]) {
 
+		}
+		else {
+			cout << "Pixel is NOT equal\n\n";
+			return false;
+		}
+	}
+	return true;*/
+		// SSE
+	/*__m128 a_high = _mm_set_ps(a[2] + (a[2] * percent), a[1] + (a[1] * percent), a[0] + (a[0] * percent), 1.0);
+	//__m128 a_mid = _mm_set_ps(a[2], a[1], b[0], 1.0);
+	__m128 a_low = _mm_set_ps(a[2] - (a[2] * percent), a[1] - (a[1] * percent), a[0] - (a[0] * percent), 1.0);
+	__m128 b_high = _mm_set_ps(b[2] + (b[2] * percent), b[1] + (b[1] * percent), b[0] + (b[0] * percent), 1.0);
+	__m128 b_mid = _mm_set_ps(b[2], b[1], b[0], 1.0);
+	//__m128 b_low = _mm_set_ps(b[2] - (b[2] * percent), b[1] - (b[1] * percent), b[0] - (b[0] * percent), 1.0);
+	__m128 b_lt_a = _mm_cmplt_ps(b_mid, a_high);					volatile bool* resa = (volatile bool*)&b_lt_a;
+	__m128 b_gt_a = _mm_cmpgt_ps(b_mid, a_low);						volatile bool* resb = (volatile bool*)&b_gt_a;
+	for (int i = 0; i < 3; i++) {
+		//cout << resa[i];
+		if (resa[i] && resb[i]) {
+		}
+		else {
+			return false;
+		}
+	}
+	return true;*/
+}
+bool unique_frame(Mat a, Mat b, float percent) {
+	a.convertTo(a, CV_32FC3);
+	b.convertTo(b, CV_32FC3);
+	for (int y = 0; y < a.rows; y++) {
+		#pragma omp parallel for
+		for (int x = 0; x < a.cols; x++) {
+			if (equal(a.at<Vec3b>(y, x), b.at<Vec3b>(y, x))) {
+				//cout << "Frame is NOT Unique\n\n";
+			}
+			else {
+				//cout << "Frame is Unique\n\n";
+				return true;
+			}
+		}
+	}
+	return false;
+}
 void init() {
 	string fp;
 	cout << "Proceu Tech 2022 'Belgorod' Resolution Scale Detection\n\n";
@@ -114,8 +175,9 @@ void init() {
 	ofstream csv;
 	csv.open("ANALYSIS.csv");
 	csv << "x_res,y_res\n";
-	Mat frame;
+	Mat frame, frame_p;
 	long count = 0;
+	int fps = 0, fps_max = 0;
 	while (!end) {
 		cap >> frame;
 		/*vector<vector<bool>> MAP; MAP.resize(frame.rows);
@@ -127,12 +189,27 @@ void init() {
 			end = true;
 			break;
 		}
+		if (frame_p.empty()) {
+			frame_p = frame;
+		}
 		//MAP = contrast(frame);
 		imshow("Video Input", frame);
 		waitKey(1);
 		pixel_count(frame, y, x);
+		/*if (unique_frame(frame, frame_p, 0.5)) {
+			fps++;
+			//cout << "Frame is Unique\n\n";
+		}*/
 		cout << setw(15) << "Frame " << count << ": " << setw(15) << x << "," << y << setw(15) << (float)x / frame.cols * 100 << "% X-Axis, " << setw(8) << (float)y / frame.rows * 100 << "% Y-Axis" << endl;
 		csv << x << "," << y << "\n";
+		/*else {
+			cout << setw(15) << "Frame " << count << ": " << setw(15) << x << "," << y << setw(15) << (float)x / frame.cols * 100 << "% X-Axis, " << setw(8) << (float)y / frame.rows * 100 << "% Y-Axis" << setw(15) << "FPS: " << fps << endl;
+			csv << x << "," << y << "," << fps << "\n";
+			fps = 0;
+		}
+		if (fps > fps_max) {
+			fps_max = fps;
+		}*/
 		count++;
 	}
 	csv.close();
@@ -218,38 +295,33 @@ node match(vector<node> in, node match) {
 	}
 }*/
 
-bool same_color(Vec3f a, Vec3f b, float percent) {
-	/*__m128 a_m128_high = _mm_set_ps((a[2] + (a[2] * percent)), (a[1] + (a[1] * percent)), (a[0] + (a[0] * percent)), 1.1);
-	//cout << setw(30) << "a_m128_high = { " << (a[2] + (a[2] * percent)) << " , " << (a[1] + (a[1] * percent)) << " , " << (a[0] + (a[0] * percent)) << " }\n\n";
-	__m128 a_m128_low = _mm_set_ps((a[2] - (a[2] * percent)), (a[1] - (a[1] * percent)), (a[0] - (a[0] * percent)), 0.9);
-	__m128 b_m128 = _mm_set_ps(b[2], b[1], b[0], 1.0);
-	__m128 cmplt_a_b = _mm_cmplt_ps(b_m128, a_m128_high);		volatile bool* res_cmplt_a_b = (volatile bool*)&cmplt_a_b;
-	__m128 cmpgt_a_b = _mm_cmpgt_ps(b_m128, a_m128_low);		volatile bool* res_cmpgt_a_b = (volatile bool*)&cmpgt_a_b;
-	#pragma omp parallel for
+bool same_color(Vec3b a, Vec3b b) {
+		// SSE
+	/*__m128i a_v = _mm_set_epi8(a[0], a[1], a[2], 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+	__m128i b_v = _mm_set_epi8(a[0], a[1], a[2], 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2);
+	__m128i res = _mm_cmpeq_epi8(a_v, b_v);
+	volatile bool* r = (volatile bool*)&res;
 	for (int i = 0; i < 3; i++) {
-		if (res_cmplt_a_b[i] == 1 && res_cmpgt_a_b[i] == 1) {
-			cout << setw(20) << "Same Color TRUE\n\n";
-		}
-		else {
+		if (r[i]) {
 			return false;
 		}
 	}
-	cout << setw(20) << "Same Color TRUE\n\n";
 	return true;*/
+		// Scalar
 	bool ret = false;
-	if ((a[0] <= b[0] + (b[0] * percent) && b[0] <= a[0] + (a[0] * percent)) && (a[0] >= b[0] - (b[0] * percent) && b[0] >= a[0] - (a[0] * percent))) {
+	if ((a[0] <= b[0] && b[0] <= a[0]) && (a[0] >= b[0] && b[0] >= a[0] )) {
 		ret = true;
 	}
 	else {
 		return false;
 	}
-	if (a[1] <= b[1] + (b[1] * percent) && b[1] <= a[1] + (a[1] * percent) && (a[1] >= b[1] - (b[1] * percent) && b[1] >= a[1] - (a[1] * percent))) {
+	if (a[1] <= b[1] && b[1] <= a[1] && (a[1] >= b[1]  && b[1] >= a[1] )) {
 		ret = true;
 	}
 	else {
 		return false;
 	}
-	if (a[2] <= b[2] + (b[2] * percent) && b[2] <= a[2] + (a[2] * percent) && (a[2] >= b[2] - (b[2] * percent) &&  b[2] >= a[2] - (a[2] * percent))) {
+	if (a[2] <= b[2] && b[2] <= a[2] && (a[2] >= b[2] &&  b[2] >= a[2])) {
 		ret = true;
 	}
 	else {
@@ -258,7 +330,7 @@ bool same_color(Vec3f a, Vec3f b, float percent) {
 	return true;
 }
 
-bool interpolated(Vec3f a, Vec3f b, Vec3f c, float percent) {
+bool interpolated(Vec3b a, Vec3b b, Vec3b c, float percent) {
 	bool ret = false;
 	/*__m128 a_m128_low = _mm_set_ps((a[2] + ((c[2] - a[2]) / 2) - (a[2] * percent)), (a[1] + ((c[1] - a[1]) / 2) - (a[1] * percent)), (a[0] + ((c[0] - a[0]) / 2) - (a[0] * percent)), 1.0);
 	__m128 a_m128_high = _mm_set_ps((a[2] + ((c[2] - a[2]) / 2) + (a[2] * percent)), (a[1] + ((c[1] - a[1]) / 2) + (a[1] * percent)), (a[0] + ((c[0] - a[0]) / 2) + (a[0] * percent)), 1.0);
@@ -298,7 +370,7 @@ bool interpolated(Vec3f a, Vec3f b, Vec3f c, float percent) {
 }
 
 void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
-	in.convertTo(in, CV_32FC3);
+	//in.convertTo(in, CV_32FC3);
 	int max_y = in.rows; int max_x = in.cols;
 		// calculate pixel size
 	//srand(time(NULL));
@@ -310,11 +382,12 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 	int pix_size_p = 1024;
 	int pix_size_max = 0;
 	pixel current, prior;
+		// X-Axis
 	#pragma omp parallel for
 	for (int xt = 0; xt < max_x; xt++) {
 		//srand(time(NULL));
 		//r = rand() % 16 + 1;
-		if (interpolated(in.at<Vec3f>((max_y/2), abs(xt-1)), in.at<Vec3f>((max_y/2), xt), in.at<Vec3f>((max_y/2), abs(xt + 1) % max_x), 0.01) || (same_color(in.at<Vec3f>((max_y/2), xt),in.at<Vec3f>((max_y/2),abs(xt+1)%max_x), 0.001) && pix_size < pix_size_max)) {
+		if (interpolated(in.at<Vec3b>((max_y/2), abs(xt-1)), in.at<Vec3b>((max_y/2), xt), in.at<Vec3b>((max_y/2), abs(xt + 1) % max_x), 0.01) || (same_color(in.at<Vec3b>((max_y/2), xt),in.at<Vec3b>((max_y/2),abs(xt+1)%max_x)) && pix_size < pix_size_max)) {
 			pix_size++;
 		}
 		else {
@@ -327,11 +400,12 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 			x++;
 		}
 	}
+		// Y-Axis
 	pix_size = 0;
 	pix_size_p = 1024;
 	#pragma omp parallel for
 	for (int yt = 0; yt < max_y; yt++) {
-		if (interpolated(in.at<Vec3f>(abs(yt-1), (max_x/2)), in.at<Vec3f>(yt, (max_x/2)), in.at<Vec3f>(abs(yt+1)%max_y, (max_x/2)), 0.01) || (same_color(in.at<Vec3f>(yt, (max_x / 2)), in.at<Vec3f>(abs(yt + 1) % max_y, (max_x / 2)), 0.001) && pix_size < pix_size_max)) {
+		if (interpolated(in.at<Vec3b>(abs(yt-1), (max_x/2)), in.at<Vec3b>(yt, (max_x/2)), in.at<Vec3b>(abs(yt+1)%max_y, (max_x/2)), 0.01) || (equal(in.at<Vec3b>(yt, (max_x / 2)), in.at<Vec3b>(abs(yt + 1) % max_y, (max_x / 2))) && pix_size < pix_size_max)) {
 			pix_size++;
 		}
 		else {
