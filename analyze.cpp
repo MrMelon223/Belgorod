@@ -101,7 +101,7 @@ Vec3f div(Vec3f a, Vec3f b) {
 bool equal(Vec3b a, Vec3b b) {
 		// SSE v2
 	__m128i a_v = _mm_set_epi8(a[0], a[1], a[2], 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
-	__m128i b_v = _mm_set_epi8(a[0], a[1], a[2], 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2);
+	__m128i b_v = _mm_set_epi8(b[0], b[1], b[2], 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2);
 	__m128i res = _mm_cmpeq_epi8(a_v, b_v);
 	volatile bool* r = (volatile bool*)&res;
 	for (int i = 0; i < 3; i++) {
@@ -200,7 +200,7 @@ void init() {
 			fps++;
 			//cout << "Frame is Unique\n\n";
 		}*/
-		cout << setw(15) << "Frame " << count << ": " << setw(15) << x << "," << y << setw(15) << (float)x / frame.cols * 100 << "% X-Axis, " << setw(8) << (float)y / frame.rows * 100 << "% Y-Axis" << endl;
+		cout << setw(15) << "Frame " << count << ": " << setw(15) << x << "," << y << setw(15) << (float)x / frame.cols * 100 << "% X-Axis, " << setw(8) << (float)y / frame.rows * 100 << "% Y-Axis" /* << setw(35) << "Total Resolution: " << (float)(x * y) / (frame.cols * frame.rows) * 100 << "%"*/ << endl;
 		csv << x << "," << y << "\n";
 		/*else {
 			cout << setw(15) << "Frame " << count << ": " << setw(15) << x << "," << y << setw(15) << (float)x / frame.cols * 100 << "% X-Axis, " << setw(8) << (float)y / frame.rows * 100 << "% Y-Axis" << setw(15) << "FPS: " << fps << endl;
@@ -297,18 +297,22 @@ node match(vector<node> in, node match) {
 
 bool same_color(Vec3b a, Vec3b b) {
 		// SSE
-	/*__m128i a_v = _mm_set_epi8(a[0], a[1], a[2], 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
-	__m128i b_v = _mm_set_epi8(a[0], a[1], a[2], 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2);
+	__m128i a_v = _mm_set_epi8(a[0], a[1], a[2], 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+	__m128i b_v = _mm_set_epi8(b[0], b[1], b[2], 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2);
 	__m128i res = _mm_cmpeq_epi8(a_v, b_v);
 	volatile bool* r = (volatile bool*)&res;
-	for (int i = 0; i < 3; i++) {
-		if (r[i]) {
+	for (int i = 15; i > 13; i--) {
+		//cout << r[i] << endl;
+		if (r[i] == 255) {
+		}
+		else {
 			return false;
 		}
 	}
-	return true;*/
+	//cout << "Same Color" << endl;
+	return true;
 		// Scalar
-	bool ret = false;
+	/*bool ret = false;
 	if ((a[0] <= b[0] && b[0] <= a[0]) && (a[0] >= b[0] && b[0] >= a[0] )) {
 		ret = true;
 	}
@@ -327,7 +331,31 @@ bool same_color(Vec3b a, Vec3b b) {
 	else {
 		return false;
 	}
-	return true;
+	return true;*/
+}
+
+namespace avx {
+	bool interpolated_by3(Vec3b a, Vec3b b, Vec3b c) {
+		bool ret = false;
+		__m128i a_v = _mm_set_epi8(a[2], a[1], a[0], 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1);
+		__m128i b_v = _mm_set_epi8(b[2], b[1], b[0], 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2);
+		__m128i c_v = _mm_set_epi8(c[2], c[1], c[0], 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3);
+		__m128i div = _mm_set1_epi8(2);
+		__m128i res = _mm_div_epi8(_mm_sub_epi8(c_v,a_v), div);
+		__m128i res2 = _mm_div_epi8(b_v, div);
+		volatile uchar* r = (volatile uchar*)&res;
+		volatile uchar* r2 = (volatile uchar*)&res2;
+		volatile uchar* b2 = (volatile uchar*)&b_v;
+		for (int i = 15; i > 13; i--) {
+			if (r2[i] <= r[i] && b2[i] >= r[i]) {
+				//cout << "Interpolated" << endl;
+				return true;
+			}
+			else {
+			}
+		}
+		return false;
+	}
 }
 
 bool interpolated(Vec3b a, Vec3b b, Vec3b c, float percent) {
@@ -378,7 +406,7 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 	/*vector<vector<node>> ns = break_down(in);
 	x = ns.size();
 	y = ns[0].size();*/
-	int pix_size = 0;
+	int pix_size = 1;
 	int pix_size_p = 1024;
 	int pix_size_max = 0;
 	pixel current, prior;
@@ -387,7 +415,7 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 	for (int xt = 0; xt < max_x; xt++) {
 		//srand(time(NULL));
 		//r = rand() % 16 + 1;
-		if (interpolated(in.at<Vec3b>((max_y/2), abs(xt-1)), in.at<Vec3b>((max_y/2), xt), in.at<Vec3b>((max_y/2), abs(xt + 1) % max_x), 0.01) || (same_color(in.at<Vec3b>((max_y/2), xt),in.at<Vec3b>((max_y/2),abs(xt+1)%max_x)) && pix_size < pix_size_max)) {
+		if (avx::interpolated_by3(in.at<Vec3b>((max_y/2), abs(xt-1)), in.at<Vec3b>((max_y/2), xt), in.at<Vec3b>((max_y/2), abs(xt + 1) % max_x)) || (same_color(in.at<Vec3b>((max_y/2), xt),in.at<Vec3b>((max_y/2),abs(xt+1)%max_x)) && pix_size < pix_size_p)) {
 			pix_size++;
 		}
 		else {
@@ -401,11 +429,11 @@ void pixel_count(Mat in /*vector<vector<bool>> in*/, int& y, int& x) {
 		}
 	}
 		// Y-Axis
-	pix_size = 0;
+	pix_size = 1;
 	pix_size_p = 1024;
 	#pragma omp parallel for
 	for (int yt = 0; yt < max_y; yt++) {
-		if (interpolated(in.at<Vec3b>(abs(yt-1), (max_x/2)), in.at<Vec3b>(yt, (max_x/2)), in.at<Vec3b>(abs(yt+1)%max_y, (max_x/2)), 0.01) || (equal(in.at<Vec3b>(yt, (max_x / 2)), in.at<Vec3b>(abs(yt + 1) % max_y, (max_x / 2))) && pix_size < pix_size_max)) {
+		if (avx::interpolated_by3(in.at<Vec3b>(abs(yt - 1), (max_x / 2)), in.at<Vec3b>(yt, (max_x / 2)), in.at<Vec3b>(abs(yt + 1) % max_y, (max_x / 2))) || (same_color(in.at<Vec3b>(yt, (max_x / 2)), in.at<Vec3b>(abs(yt + 1) % max_y, (max_x / 2))) && pix_size < pix_size_p)) {
 			pix_size++;
 		}
 		else {
